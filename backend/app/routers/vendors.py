@@ -11,7 +11,7 @@ from app.schemas.vendor import VendorCreate, VendorUpdate, VendorOut
 from app.core.deps import get_current_user, require_roles
 
 router = APIRouter(prefix="/api/vendors", tags=["Vendors"])
-_write = require_roles(UserRole.purchase, UserRole.admin)
+_write = require_roles(UserRole.purchase, UserRole.owner, UserRole.admin)
 
 
 @router.post("", response_model=VendorOut, status_code=201)

@@ -16,7 +16,7 @@ from app.services.audit import log_action
 from app.services.sequence import next_po_name
 
 router = APIRouter(prefix="/api/purchase", tags=["Purchase"])
-_write = require_roles(UserRole.purchase, UserRole.admin)
+_write = require_roles(UserRole.purchase, UserRole.owner, UserRole.admin)
 
 
 @router.post("", response_model=PurchaseOrderOut, status_code=201)
@@ -66,6 +66,29 @@ def get_purchase_order(order_id: UUID, db: Session = Depends(get_db), _: User = 
     order = db.query(PurchaseOrder).filter(PurchaseOrder.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Purchase order not found")
+    return order
+
+
+@router.put("/{order_id}", response_model=PurchaseOrderOut)
+def update_purchase_order(
+    order_id: UUID,
+    payload: PurchaseOrderUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_write),
+):
+    order = db.query(PurchaseOrder).filter(PurchaseOrder.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    if order.status != PurchaseOrderStatus.draft:
+        raise HTTPException(status_code=400, detail="Only draft orders can be edited")
+    if payload.expected_date is not None:
+        order.expected_date = payload.expected_date
+    if payload.notes is not None:
+        order.notes = payload.notes
+    db.commit()
+    db.refresh(order)
+    log_action(db, "UPDATE", "purchase_order", order.id, order.name, user_id=current_user.id)
+    db.commit()
     return order
 
 

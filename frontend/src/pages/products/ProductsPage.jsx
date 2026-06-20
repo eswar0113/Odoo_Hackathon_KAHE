@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { Plus, Edit2, TrendingUp, X, Package } from 'lucide-react'
 import api from '../../api/client'
+import { useAuth } from '../../context/AuthContext'
 
 const PROCUREMENT_TYPES = ['purchase', 'manufacturing']
 const STRATEGIES = ['mts', 'mto']
@@ -155,7 +156,7 @@ const TableSkeleton = () => (
   </div>
 )
 
-const EmptyState = ({ onAction }) => (
+const EmptyState = ({ onAction, canEdit }) => (
   <div className="card flex flex-col items-center justify-center text-center py-16 px-4 animate-in">
     <div className="p-4 bg-indigo-50 text-indigo-600 rounded-full mb-4">
       <Package size={32} />
@@ -164,14 +165,19 @@ const EmptyState = ({ onAction }) => (
     <p className="text-sm text-slate-500 max-w-sm mb-6">
       Add products to your catalog to start managing inventory levels, processing sales orders, and tracking manufacturing processes.
     </p>
-    <button className="btn-primary" onClick={onAction}>
-      <Plus size={16} /> Create First Product
-    </button>
+    {canEdit && (
+      <button className="btn-primary" onClick={onAction}>
+        <Plus size={16} /> Create First Product
+      </button>
+    )}
   </div>
 )
 
 export default function ProductsPage() {
   const qc = useQueryClient()
+  const { user } = useAuth()
+  const canEdit = ['admin', 'owner'].includes(user?.role)
+  const canAdjustStock = ['admin', 'owner', 'inventory'].includes(user?.role)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [adjusting, setAdjusting] = useState(null)
@@ -213,15 +219,17 @@ export default function ProductsPage() {
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Products</h1>
           <p className="text-slate-500 text-sm mt-1">Manage items, stock counts, auto procurement rules, and sales parameters.</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowForm(true)}>
-          <Plus size={18} /> New Product
-        </button>
+        {canEdit && (
+          <button className="btn-primary" onClick={() => setShowForm(true)}>
+            <Plus size={18} /> New Product
+          </button>
+        )}
       </div>
 
       {isLoading ? (
         <TableSkeleton />
       ) : !products?.length ? (
-        <EmptyState onAction={() => setShowForm(true)} />
+        <EmptyState onAction={() => setShowForm(true)} canEdit={canEdit} />
       ) : (
         <div className="table-wrapper">
           <div className="overflow-x-auto">
@@ -251,12 +259,16 @@ export default function ProductsPage() {
                     </td>
                     <td className="td">
                       <div className="flex items-center gap-1">
-                        <button className="btn-icon text-indigo-600 hover:bg-indigo-50" onClick={() => setEditing(p)} title="Edit Product">
-                          <Edit2 size={16} />
-                        </button>
-                        <button className="btn-icon text-emerald-600 hover:bg-emerald-50" onClick={() => setAdjusting(p)} title="Adjust Stock">
-                          <TrendingUp size={16} />
-                        </button>
+                        {canEdit && (
+                          <button className="btn-icon text-indigo-600 hover:bg-indigo-50" onClick={() => setEditing(p)} title="Edit Product">
+                            <Edit2 size={16} />
+                          </button>
+                        )}
+                        {canAdjustStock && (
+                          <button className="btn-icon text-emerald-600 hover:bg-emerald-50" onClick={() => setAdjusting(p)} title="Adjust Stock">
+                            <TrendingUp size={16} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

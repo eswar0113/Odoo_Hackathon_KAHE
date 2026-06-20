@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { ArrowLeft, CheckCircle, PackageCheck, XCircle, Calendar, Building2, Clipboard } from 'lucide-react'
 import api from '../../api/client'
+import { useAuth } from '../../context/AuthContext'
 
 const statusBadge = (s) => ({
   draft: 'badge-draft', confirmed: 'badge-confirmed',
@@ -32,6 +33,9 @@ export default function PurchaseOrderDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { user } = useAuth()
+  const canCreate = ['admin', 'owner', 'purchase'].includes(user?.role)
+  const canCancel  = ['admin', 'owner'].includes(user?.role)
   const [receipts, setReceipts] = useState({})
 
   const { data: order, isLoading } = useQuery({ 
@@ -90,17 +94,17 @@ export default function PurchaseOrderDetail() {
         </div>
         
         <div className="flex gap-2">
-          {order.status === 'draft' && (
+          {canCreate && order.status === 'draft' && (
             <button className="btn-primary" onClick={() => confirmMut.mutate()} disabled={confirmMut.isPending}>
               <CheckCircle size={16} /> Confirm Order
             </button>
           )}
-          {['confirmed', 'partially_received'].includes(order.status) && hasRemainingReceipts && (
+          {canCreate && ['confirmed', 'partially_received'].includes(order.status) && hasRemainingReceipts && (
             <button className="btn-success" onClick={() => receiveMut.mutate()} disabled={receiveMut.isPending || Object.values(receipts).every(v => !v || parseFloat(v) <= 0)}>
               <PackageCheck size={16} /> Receive Inventory
             </button>
           )}
-          {['draft', 'confirmed'].includes(order.status) && (
+          {canCancel && ['draft', 'confirmed'].includes(order.status) && (
             <button className="btn-danger" onClick={() => cancelMut.mutate()} disabled={cancelMut.isPending}>
               <XCircle size={16} /> Cancel Order
             </button>

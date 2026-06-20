@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.product import Product, MovementType
+from app.models.product import Product, MovementType, ProcurementStrategy
 from app.models.sales import SalesOrder, SalesOrderLine, SalesOrderStatus
 from app.models.user import User, UserRole
 from app.schemas.sales import SalesOrderCreate, SalesOrderUpdate, SalesOrderOut, DeliverRequest
@@ -17,7 +17,7 @@ from app.services.sequence import next_so_name
 from app.services.procurement import trigger_procurement
 
 router = APIRouter(prefix="/api/sales", tags=["Sales"])
-_write = require_roles(UserRole.sales, UserRole.admin)
+_write = require_roles(UserRole.sales, UserRole.owner, UserRole.admin)
 
 
 @router.post("", response_model=SalesOrderOut, status_code=201)
@@ -106,14 +106,16 @@ def confirm_sales_order(
         qty_needed = float(line.qty_ordered)
 
         if free_qty >= qty_needed:
-            # Full stock available — reserve it
+            # Sufficient stock — reserve and deliver from stock (MTS & MTO both)
             reserve_stock(db, product, Decimal(str(line.qty_ordered)))
         else:
-            # Reserve what's available and trigger procurement for the rest
+            # Reserve whatever is available
             if free_qty > 0:
                 reserve_stock(db, product, Decimal(str(free_qty)))
             shortage = Decimal(str(qty_needed - free_qty))
-            if shortage > 0 and product.procure_on_demand:
+            # Only MTO products trigger auto-procurement on demand shortage
+            # MTS products are pre-stocked via reorder checks, not on SO confirm
+            if shortage > 0 and product.procure_on_demand and product.procurement_strategy == ProcurementStrategy.mto:
                 trigger_procurement(db, product, shortage, origin_ref=order.name, current_user=current_user)
 
     order.status = SalesOrderStatus.confirmed

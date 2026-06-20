@@ -2,8 +2,46 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Plus, ArrowLeft, Trash2, X, BookOpen, Clipboard, Settings } from 'lucide-react'
+import { Plus, ArrowLeft, Trash2, X, BookOpen, Factory } from 'lucide-react'
 import api from '../../api/client'
+import { useAuth } from '../../context/AuthContext'
+
+function WorkCenterPanel({ canEdit }) {
+  const qc = useQueryClient()
+  const [name, setName] = useState('')
+  const { data: workCenters } = useQuery({ queryKey: ['work-centers'], queryFn: () => api.get('/manufacturing/work-centers').then(r => r.data) })
+  const createMut = useMutation({
+    mutationFn: d => api.post('/manufacturing/work-centers', d),
+    onSuccess: () => { qc.invalidateQueries(['work-centers']); setName(''); toast.success('Work center created') },
+    onError: e => toast.error(e.response?.data?.detail || 'Failed to create work center'),
+  })
+  return (
+    <div className="card">
+      <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-100">
+        <div className="p-2 bg-amber-50 text-amber-600 rounded-xl"><Factory size={18} /></div>
+        <h3 className="font-bold text-slate-800 text-base">Work Centers</h3>
+        <span className="text-xs text-slate-400 font-semibold ml-auto">{workCenters?.length || 0} configured</span>
+      </div>
+      <div className="space-y-2 mb-4 max-h-40 overflow-y-auto">
+        {workCenters?.length ? workCenters.map(wc => (
+          <div key={wc.id} className="flex items-center gap-3 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100">
+            <Factory size={14} className="text-amber-500 flex-shrink-0" />
+            <span className="text-sm font-semibold text-slate-700">{wc.name}</span>
+            {wc.description && <span className="text-xs text-slate-400 truncate">{wc.description}</span>}
+          </div>
+        )) : <p className="text-xs text-slate-400 text-center py-4">No work centers yet. Add one below.</p>}
+      </div>
+      {canEdit && (
+        <div className="flex gap-2">
+          <input className="input flex-1 text-sm" placeholder="e.g. Assembly Line" value={name} onChange={e => setName(e.target.value)} />
+          <button className="btn-primary py-2 px-4 text-sm" onClick={() => { if (name.trim()) createMut.mutate({ name: name.trim() }) }} disabled={createMut.isPending}>
+            <Plus size={14} /> Add
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function BOMForm({ onClose }) {
   const qc = useQueryClient()
@@ -162,7 +200,7 @@ const DetailSkeleton = () => (
   </div>
 )
 
-const EmptyState = ({ onAction }) => (
+const EmptyState = ({ onAction, canEdit }) => (
   <div className="card flex flex-col items-center justify-center text-center py-16 px-4 animate-in">
     <div className="p-4 bg-indigo-50 text-indigo-600 rounded-full mb-4">
       <BookOpen size={32} />
@@ -171,17 +209,21 @@ const EmptyState = ({ onAction }) => (
     <p className="text-sm text-slate-500 max-w-sm mb-6">
       Define a Bill of Materials (BoM) to outline the exact raw materials, quantities, and work routing steps needed to produce a final finished product.
     </p>
-    <button className="btn-primary" onClick={onAction}>
-      <Plus size={16} /> Create First BoM
-    </button>
+    {canEdit && (
+      <button className="btn-primary" onClick={onAction}>
+        <Plus size={16} /> Create First BoM
+      </button>
+    )}
   </div>
 )
 
 export default function BOMPage() {
   const [showNew, setShowNew] = useState(false)
-  const { data: boms, isLoading } = useQuery({ 
-    queryKey: ['boms'], 
-    queryFn: () => api.get('/manufacturing/boms').then(r => r.data) 
+  const { user } = useAuth()
+  const canEdit = ['admin', 'owner', 'manufacturing'].includes(user?.role)
+  const { data: boms, isLoading } = useQuery({
+    queryKey: ['boms'],
+    queryFn: () => api.get('/manufacturing/boms').then(r => r.data)
   })
 
   return (
@@ -196,15 +238,19 @@ export default function BOMPage() {
             <p className="text-slate-500 text-sm mt-1">Configure formulas, material specifications, and production steps.</p>
           </div>
         </div>
-        <button className="btn-primary" onClick={() => setShowNew(true)}>
-          <Plus size={18} /> New BoM
-        </button>
+        {canEdit && (
+          <button className="btn-primary" onClick={() => setShowNew(true)}>
+            <Plus size={18} /> New BoM
+          </button>
+        )}
       </div>
+
+      <WorkCenterPanel canEdit={canEdit} />
 
       {isLoading ? (
         <DetailSkeleton />
       ) : !boms?.length ? (
-        <EmptyState onAction={() => setShowNew(true)} />
+        <EmptyState onAction={() => setShowNew(true)} canEdit={canEdit} />
       ) : (
         <div className="space-y-6">
           {boms.map(bom => (

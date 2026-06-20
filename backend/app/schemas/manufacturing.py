@@ -87,6 +87,7 @@ class MOCreate(BaseModel):
     qty_planned: Decimal
     scheduled_date: Optional[date] = None
     origin_ref: Optional[str] = None
+    assignee_id: Optional[UUID] = None
 
 
 class MOComponentOut(BaseModel):
@@ -124,6 +125,8 @@ class MOOut(BaseModel):
     status: MOStatus
     scheduled_date: Optional[date] = None
     origin_ref: Optional[str] = None
+    assignee_id: Optional[UUID] = None
+    assignee_name: Optional[str] = None
     components: List[MOComponentOut] = []
     work_orders: List[WorkOrderOut] = []
     created_at: Optional[datetime] = None

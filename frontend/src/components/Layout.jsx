@@ -8,14 +8,14 @@ import {
 import { useState } from 'react'
 
 const navItems = [
-  { path: '/',               label: 'Dashboard',      icon: LayoutDashboard, color: 'text-indigo-400',  bg: 'bg-indigo-500/20' },
-  { path: '/products',       label: 'Products',       icon: Package,         color: 'text-sky-400',     bg: 'bg-sky-500/20' },
-  { path: '/sales',          label: 'Sales',          icon: ShoppingCart,    color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
-  { path: '/purchase',       label: 'Purchase',       icon: Truck,           color: 'text-violet-400',  bg: 'bg-violet-500/20' },
-  { path: '/manufacturing',  label: 'Manufacturing',  icon: Factory,         color: 'text-amber-400',   bg: 'bg-amber-500/20' },
-  { path: '/vendors',        label: 'Vendors',        icon: Building2,       color: 'text-rose-400',    bg: 'bg-rose-500/20' },
-  { path: '/customers',      label: 'Customers',      icon: Users,           color: 'text-teal-400',    bg: 'bg-teal-500/20' },
-  { path: '/audit',          label: 'Audit Logs',     icon: ClipboardList,   color: 'text-slate-400',   bg: 'bg-slate-500/20', adminOnly: true },
+  { path: '/',               label: 'Dashboard',      icon: LayoutDashboard, color: 'text-indigo-400',  bg: 'bg-indigo-500/20', roles: ['admin','owner','sales','purchase','manufacturing','inventory'] },
+  { path: '/products',       label: 'Products',       icon: Package,         color: 'text-sky-400',     bg: 'bg-sky-500/20',    roles: ['admin','owner','inventory'] },
+  { path: '/sales',          label: 'Sales',          icon: ShoppingCart,    color: 'text-emerald-400', bg: 'bg-emerald-500/20',roles: ['admin','owner','sales'] },
+  { path: '/purchase',       label: 'Purchase',       icon: Truck,           color: 'text-violet-400',  bg: 'bg-violet-500/20', roles: ['admin','owner','purchase'] },
+  { path: '/manufacturing',  label: 'Manufacturing',  icon: Factory,         color: 'text-amber-400',   bg: 'bg-amber-500/20',  roles: ['admin','owner','manufacturing'] },
+  { path: '/vendors',        label: 'Vendors',        icon: Building2,       color: 'text-rose-400',    bg: 'bg-rose-500/20',   roles: ['admin','owner','purchase'] },
+  { path: '/customers',      label: 'Customers',      icon: Users,           color: 'text-teal-400',    bg: 'bg-teal-500/20',   roles: ['admin','owner','sales'] },
+  { path: '/audit',          label: 'Audit Logs',     icon: ClipboardList,   color: 'text-slate-400',   bg: 'bg-slate-500/20',  roles: ['admin'] },
 ]
 
 function UserAvatar({ name, role }) {
@@ -44,7 +44,7 @@ export default function Layout({ children }) {
   const [open, setOpen] = useState(false)
 
   const handleLogout = () => { logout(); navigate('/login') }
-  const visible = navItems.filter(item => !item.adminOnly || user?.role === 'admin')
+  const visible = navItems.filter(item => item.roles.includes(user?.role))
 
   const currentPage = visible.find(i =>
     i.path !== '/' ? location.pathname.startsWith(i.path) : location.pathname === '/'

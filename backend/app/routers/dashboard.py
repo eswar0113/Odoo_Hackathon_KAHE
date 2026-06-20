@@ -1,9 +1,12 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
 
 from app.database import get_db
+from app.models.product import Product
 from app.models.sales import SalesOrder, SalesOrderStatus
 from app.models.purchase import PurchaseOrder, PurchaseOrderStatus
 from app.models.manufacturing import ManufacturingOrder, MOStatus
@@ -16,18 +19,26 @@ router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 class DashboardStats(BaseModel):
     total_sales_orders: int
     pending_deliveries: int
+    delayed_orders: int
     total_purchase_orders: int
     partial_receipts: int
     total_manufacturing_orders: int
     in_progress_mos: int
     done_mos: int
+    low_stock_products: int
 
 
 @router.get("", response_model=DashboardStats)
 def get_dashboard(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    today = date.today()
+
     so_total = db.query(func.count(SalesOrder.id)).scalar() or 0
     so_pending = db.query(func.count(SalesOrder.id)).filter(
         SalesOrder.status.in_([SalesOrderStatus.confirmed, SalesOrderStatus.partially_delivered])
+    ).scalar() or 0
+    so_delayed = db.query(func.count(SalesOrder.id)).filter(
+        SalesOrder.status.in_([SalesOrderStatus.confirmed, SalesOrderStatus.partially_delivered]),
+        SalesOrder.expected_delivery_date < today,
     ).scalar() or 0
 
     po_total = db.query(func.count(PurchaseOrder.id)).scalar() or 0
@@ -43,12 +54,20 @@ def get_dashboard(db: Session = Depends(get_db), _: User = Depends(get_current_u
         ManufacturingOrder.status == MOStatus.done
     ).scalar() or 0
 
+    products = db.query(Product).filter(Product.is_active == True).all()
+    low_stock = sum(
+        1 for p in products
+        if float(p.on_hand_qty) - float(p.reserved_qty) < float(p.reorder_point)
+    )
+
     return DashboardStats(
         total_sales_orders=so_total,
         pending_deliveries=so_pending,
+        delayed_orders=so_delayed,
         total_purchase_orders=po_total,
         partial_receipts=po_partial,
         total_manufacturing_orders=mo_total,
         in_progress_mos=mo_in_progress,
         done_mos=mo_done,
+        low_stock_products=low_stock,
     )

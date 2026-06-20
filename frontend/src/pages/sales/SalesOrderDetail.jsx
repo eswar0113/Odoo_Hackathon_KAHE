@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ArrowLeft, CheckCircle, Truck, XCircle, Calendar, User, ShoppingCart } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Truck, XCircle, Calendar, User } from 'lucide-react'
 import api from '../../api/client'
+import { useAuth } from '../../context/AuthContext'
 
 const statusBadge = (s) => ({
   draft: 'badge-draft', confirmed: 'badge-confirmed',
@@ -32,6 +33,9 @@ export default function SalesOrderDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { user } = useAuth()
+  const canCreate = ['admin', 'owner', 'sales'].includes(user?.role)
+  const canCancel = ['admin', 'owner'].includes(user?.role)
   const [deliveries, setDeliveries] = useState({})
 
   const { data: order, isLoading } = useQuery({ 
@@ -82,17 +86,17 @@ export default function SalesOrderDetail() {
         </div>
         
         <div className="flex gap-2">
-          {order.status === 'draft' && (
+          {canCreate && order.status === 'draft' && (
             <button className="btn-primary" onClick={() => confirmMut.mutate()} disabled={confirmMut.isPending}>
               <CheckCircle size={16} /> Confirm Order
             </button>
           )}
-          {['confirmed', 'partially_delivered'].includes(order.status) && hasRemainingDelivery && (
+          {canCreate && ['confirmed', 'partially_delivered'].includes(order.status) && hasRemainingDelivery && (
             <button className="btn-success" onClick={() => deliverMut.mutate()} disabled={deliverMut.isPending || Object.values(deliveries).every(v => !v || parseFloat(v) <= 0)}>
               <Truck size={16} /> Record Dispatch
             </button>
           )}
-          {['draft', 'confirmed'].includes(order.status) && (
+          {canCancel && ['draft', 'confirmed'].includes(order.status) && (
             <button className="btn-danger" onClick={() => cancelMut.mutate()} disabled={cancelMut.isPending}>
               <XCircle size={16} /> Cancel Order
             </button>

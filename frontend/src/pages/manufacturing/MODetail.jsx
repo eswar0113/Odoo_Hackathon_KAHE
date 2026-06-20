@@ -1,8 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ArrowLeft, CheckCircle, Play, Hammer, XCircle, PlayCircle, StopCircle, Clipboard, Package, Calendar, Settings } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Play, Hammer, XCircle, PlayCircle, StopCircle, Clipboard, Package, Settings } from 'lucide-react'
 import api from '../../api/client'
+import { useAuth } from '../../context/AuthContext'
 
 const statusBadge = (s) => ({
   draft: 'badge-draft', confirmed: 'badge-confirmed', in_progress: 'badge-progress',
@@ -35,22 +36,35 @@ export default function MODetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { user } = useAuth()
+  const canCreate = ['admin', 'owner', 'manufacturing'].includes(user?.role)
+  const canCancel  = ['admin', 'owner'].includes(user?.role)
 
-  const { data: mo, isLoading } = useQuery({ 
-    queryKey: ['manufacturing', id], 
-    queryFn: () => api.get(`/manufacturing/orders/${id}`).then(r => r.data) 
+  const { data: mo, isLoading } = useQuery({
+    queryKey: ['manufacturing', id],
+    queryFn: () => api.get(`/manufacturing/orders/${id}`).then(r => r.data)
   })
 
-  const mut = (path, msg) => useMutation({
-    mutationFn: () => api.post(`/manufacturing/orders/${id}/${path}`),
-    onSuccess: () => { qc.invalidateQueries(['manufacturing', id]); toast.success(msg) },
+  const confirmMut = useMutation({
+    mutationFn: () => api.post(`/manufacturing/orders/${id}/confirm`),
+    onSuccess: () => { qc.invalidateQueries(['manufacturing', id]); toast.success('MO confirmed successfully') },
     onError: e => toast.error(e.response?.data?.detail || 'Error'),
   })
-
-  const confirmMut = mut('confirm', 'MO confirmed successfully')
-  const startMut = mut('start', 'Production started')
-  const produceMut = mut('produce', 'Production completed! Inventory updated.')
-  const cancelMut = mut('cancel', 'MO cancelled')
+  const startMut = useMutation({
+    mutationFn: () => api.post(`/manufacturing/orders/${id}/start`),
+    onSuccess: () => { qc.invalidateQueries(['manufacturing', id]); toast.success('Production started') },
+    onError: e => toast.error(e.response?.data?.detail || 'Error'),
+  })
+  const produceMut = useMutation({
+    mutationFn: () => api.post(`/manufacturing/orders/${id}/produce`),
+    onSuccess: () => { qc.invalidateQueries(['manufacturing', id]); toast.success('Production completed! Inventory updated.') },
+    onError: e => toast.error(e.response?.data?.detail || 'Error'),
+  })
+  const cancelMut = useMutation({
+    mutationFn: () => api.post(`/manufacturing/orders/${id}/cancel`),
+    onSuccess: () => { qc.invalidateQueries(['manufacturing', id]); toast.success('MO cancelled') },
+    onError: e => toast.error(e.response?.data?.detail || 'Error'),
+  })
 
   const woStartMut = useMutation({
     mutationFn: (wo_id) => api.post(`/manufacturing/orders/${id}/work-orders/${wo_id}/start`),
@@ -93,22 +107,22 @@ export default function MODetail() {
         </div>
         
         <div className="flex gap-2">
-          {mo.status === 'draft' && (
+          {canCreate && mo.status === 'draft' && (
             <button className="btn-primary" onClick={() => confirmMut.mutate()} disabled={confirmMut.isPending}>
               <CheckCircle size={16} /> Confirm MO
             </button>
           )}
-          {mo.status === 'confirmed' && (
+          {canCreate && mo.status === 'confirmed' && (
             <button className="btn-primary" onClick={() => startMut.mutate()} disabled={startMut.isPending}>
               <Play size={16} /> Start Production
             </button>
           )}
-          {mo.status === 'in_progress' && (
+          {canCreate && mo.status === 'in_progress' && (
             <button className="btn-success" onClick={() => produceMut.mutate()} disabled={produceMut.isPending}>
               <Hammer size={16} /> Mark Produced
             </button>
           )}
-          {!['done', 'cancelled'].includes(mo.status) && (
+          {canCancel && !['done', 'cancelled'].includes(mo.status) && (
             <button className="btn-danger" onClick={() => cancelMut.mutate()} disabled={cancelMut.isPending}>
               <XCircle size={16} /> Cancel MO
             </button>
@@ -116,7 +130,7 @@ export default function MODetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
         <div className="card flex items-start gap-4">
           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
             <Package size={20} />
@@ -126,7 +140,7 @@ export default function MODetail() {
             <div className="font-bold text-slate-900 text-base truncate">{mo.product_name}</div>
           </div>
         </div>
-        
+
         <div className="card flex items-start gap-4">
           <div className="p-3 bg-violet-50 text-violet-600 rounded-xl">
             <Settings size={20} />
@@ -136,7 +150,7 @@ export default function MODetail() {
             <div className="font-extrabold text-slate-900 text-2xl tracking-tight">{Number(mo.qty_planned).toFixed(0)}</div>
           </div>
         </div>
-        
+
         <div className="card flex items-start gap-4">
           <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
             <CheckCircle size={20} />
@@ -144,6 +158,16 @@ export default function MODetail() {
           <div>
             <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Produced Qty</span>
             <div className="font-extrabold text-emerald-600 text-2xl tracking-tight">{Number(mo.qty_produced).toFixed(0)}</div>
+          </div>
+        </div>
+
+        <div className="card flex items-start gap-4">
+          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+            <PlayCircle size={20} />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Assignee</span>
+            <div className="font-bold text-slate-900 text-sm truncate">{mo.assignee_name || 'Unassigned'}</div>
           </div>
         </div>
       </div>

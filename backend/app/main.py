@@ -5,7 +5,7 @@ from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from app.database import Base, engine
 import app.models  # noqa: ensure all models are loaded before create_all
 
-from app.routers import auth, products, vendors, customers, sales, purchase, manufacturing, audit, dashboard
+from app.routers import auth, products, vendors, customers, sales, purchase, manufacturing, audit, dashboard, procurement
 
 # Create tables (dev convenience — use Alembic for production migrations)
 Base.metadata.create_all(bind=engine)
@@ -35,6 +35,7 @@ app.include_router(purchase.router)
 app.include_router(manufacturing.router)
 app.include_router(audit.router)
 app.include_router(dashboard.router)
+app.include_router(procurement.router)
 
 
 @app.get("/docs", include_in_schema=False)

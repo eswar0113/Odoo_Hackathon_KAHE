@@ -25,7 +25,7 @@ from app.services.audit import log_action
 from app.services.sequence import next_mo_name
 
 router = APIRouter(prefix="/api/manufacturing", tags=["Manufacturing"])
-_write = require_roles(UserRole.manufacturing, UserRole.admin)
+_write = require_roles(UserRole.manufacturing, UserRole.owner, UserRole.admin)
 
 # ── Work Centers ──────────────────────────────────────────────────────────────
 
@@ -124,6 +124,7 @@ def create_mo(payload: MOCreate, db: Session = Depends(get_db), current_user: Us
         qty_planned=payload.qty_planned,
         scheduled_date=payload.scheduled_date,
         origin_ref=payload.origin_ref,
+        assignee_id=payload.assignee_id,
         created_by=current_user.id,
     )
     db.add(mo)
@@ -210,6 +211,12 @@ def produce_mo(mo_id: UUID, db: Session = Depends(get_db), current_user: User = 
         raise HTTPException(status_code=404, detail="Manufacturing order not found")
     if mo.status != MOStatus.in_progress:
         raise HTTPException(status_code=400, detail="MO must be in progress to produce")
+    pending_wos = [wo for wo in mo.work_orders if wo.status != WorkOrderStatus.done]
+    if pending_wos:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{len(pending_wos)} work order(s) not yet completed. Complete all work orders before marking produced."
+        )
 
     # Consume components
     for comp in mo.components:
@@ -327,6 +334,7 @@ def _bom_out(bom: BOM) -> BOMOut:
 
 def _mo_out(mo: ManufacturingOrder, db: Session) -> MOOut:
     product = db.query(Product).filter(Product.id == mo.product_id).first()
+    assignee = db.query(User).filter(User.id == mo.assignee_id).first() if mo.assignee_id else None
     components = [
         MOComponentOut(
             id=c.id,
@@ -349,6 +357,8 @@ def _mo_out(mo: ManufacturingOrder, db: Session) -> MOOut:
         status=mo.status,
         scheduled_date=mo.scheduled_date,
         origin_ref=mo.origin_ref,
+        assignee_id=mo.assignee_id,
+        assignee_name=assignee.full_name if assignee else None,
         components=components,
         work_orders=work_orders,
         created_at=mo.created_at,

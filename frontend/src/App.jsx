@@ -16,9 +16,25 @@ import CustomersPage from './pages/customers/CustomersPage'
 import AuditPage from './pages/AuditPage'
 import SignupPage from './pages/SignupPage'
 
+const ROUTE_ROLES = {
+  '/products':        ['admin','owner','inventory'],
+  '/sales':           ['admin','owner','sales'],
+  '/purchase':        ['admin','owner','purchase'],
+  '/manufacturing':   ['admin','owner','manufacturing'],
+  '/vendors':         ['admin','owner','purchase'],
+  '/customers':       ['admin','owner','sales'],
+  '/audit':           ['admin'],
+}
+
 function PrivateRoute({ children }) {
   const { user } = useAuth()
   return user ? children : <Navigate to="/login" replace />
+}
+
+function RoleRoute({ roles, children }) {
+  const { user } = useAuth()
+  if (!roles.includes(user?.role)) return <Navigate to="/" replace />
+  return children
 }
 
 function AppRoutes() {
@@ -32,17 +48,17 @@ function AppRoutes() {
           <Layout>
             <Routes>
               <Route path="/" element={<Dashboard />} />
-              <Route path="/products" element={<ProductsPage />} />
-              <Route path="/sales" element={<SalesPage />} />
-              <Route path="/sales/:id" element={<SalesOrderDetail />} />
-              <Route path="/purchase" element={<PurchasePage />} />
-              <Route path="/purchase/:id" element={<PurchaseOrderDetail />} />
-              <Route path="/manufacturing" element={<ManufacturingPage />} />
-              <Route path="/manufacturing/:id" element={<MODetail />} />
-              <Route path="/manufacturing/boms" element={<BOMPage />} />
-              <Route path="/vendors" element={<VendorsPage />} />
-              <Route path="/customers" element={<CustomersPage />} />
-              <Route path="/audit" element={<AuditPage />} />
+              <Route path="/products"             element={<RoleRoute roles={ROUTE_ROLES['/products']}><ProductsPage /></RoleRoute>} />
+              <Route path="/sales"                element={<RoleRoute roles={ROUTE_ROLES['/sales']}><SalesPage /></RoleRoute>} />
+              <Route path="/sales/:id"            element={<RoleRoute roles={ROUTE_ROLES['/sales']}><SalesOrderDetail /></RoleRoute>} />
+              <Route path="/purchase"             element={<RoleRoute roles={ROUTE_ROLES['/purchase']}><PurchasePage /></RoleRoute>} />
+              <Route path="/purchase/:id"         element={<RoleRoute roles={ROUTE_ROLES['/purchase']}><PurchaseOrderDetail /></RoleRoute>} />
+              <Route path="/manufacturing"        element={<RoleRoute roles={ROUTE_ROLES['/manufacturing']}><ManufacturingPage /></RoleRoute>} />
+              <Route path="/manufacturing/:id"    element={<RoleRoute roles={ROUTE_ROLES['/manufacturing']}><MODetail /></RoleRoute>} />
+              <Route path="/manufacturing/boms"   element={<RoleRoute roles={ROUTE_ROLES['/manufacturing']}><BOMPage /></RoleRoute>} />
+              <Route path="/vendors"              element={<RoleRoute roles={ROUTE_ROLES['/vendors']}><VendorsPage /></RoleRoute>} />
+              <Route path="/customers"            element={<RoleRoute roles={ROUTE_ROLES['/customers']}><CustomersPage /></RoleRoute>} />
+              <Route path="/audit"                element={<RoleRoute roles={ROUTE_ROLES['/audit']}><AuditPage /></RoleRoute>} />
             </Routes>
           </Layout>
         </PrivateRoute>

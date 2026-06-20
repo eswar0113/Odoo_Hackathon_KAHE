@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ShoppingCart, Truck, Factory, PackageCheck, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react'
+import { ShoppingCart, Truck, Factory, PackageCheck, AlertCircle, CheckCircle, TrendingUp, AlertTriangle, Clock } from 'lucide-react'
 import api from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
@@ -42,13 +42,15 @@ export default function Dashboard() {
   }
 
   const stats = [
-    { label: 'Total Sales Orders', value: data?.total_sales_orders ?? 0, icon: ShoppingCart, color: 'bg-gradient-to-br from-indigo-500 to-indigo-600', description: 'Customer sales orders logged' },
-    { label: 'Pending Deliveries', value: data?.pending_deliveries ?? 0, icon: AlertCircle, color: 'bg-gradient-to-br from-orange-400 to-amber-500', description: 'Orders awaiting delivery' },
-    { label: 'Total Purchase Orders', value: data?.total_purchase_orders ?? 0, icon: Truck, color: 'bg-gradient-to-br from-violet-500 to-fuchsia-600', description: 'Vendor procurements created' },
-    { label: 'Partial Receipts', value: data?.partial_receipts ?? 0, icon: PackageCheck, color: 'bg-gradient-to-br from-yellow-400 to-amber-500', description: 'Shipments received partially' },
-    { label: 'Manufacturing Orders', value: data?.total_manufacturing_orders ?? 0, icon: Factory, color: 'bg-gradient-to-br from-blue-500 to-indigo-600', description: 'Production jobs registered' },
-    { label: 'MOs In Progress', value: data?.in_progress_mos ?? 0, icon: Factory, color: 'bg-gradient-to-br from-pink-500 to-rose-500', description: 'Currently on assembly floor' },
-    { label: 'Completed MOs', value: data?.done_mos ?? 0, icon: CheckCircle, color: 'bg-gradient-to-br from-emerald-400 to-teal-500', description: 'Fully manufactured items' },
+    { label: 'Total Sales Orders',    value: data?.total_sales_orders ?? 0,        icon: ShoppingCart,  color: 'bg-gradient-to-br from-indigo-500 to-indigo-600',  description: 'Customer sales orders logged' },
+    { label: 'Pending Deliveries',    value: data?.pending_deliveries ?? 0,         icon: AlertCircle,   color: 'bg-gradient-to-br from-orange-400 to-amber-500',   description: 'Orders awaiting delivery' },
+    { label: 'Delayed Orders',        value: data?.delayed_orders ?? 0,             icon: Clock,         color: 'bg-gradient-to-br from-red-500 to-rose-600',       description: 'Past expected delivery date' },
+    { label: 'Total Purchase Orders', value: data?.total_purchase_orders ?? 0,      icon: Truck,         color: 'bg-gradient-to-br from-violet-500 to-fuchsia-600', description: 'Vendor procurements created' },
+    { label: 'Partial Receipts',      value: data?.partial_receipts ?? 0,           icon: PackageCheck,  color: 'bg-gradient-to-br from-yellow-400 to-amber-500',   description: 'Shipments received partially' },
+    { label: 'Manufacturing Orders',  value: data?.total_manufacturing_orders ?? 0, icon: Factory,       color: 'bg-gradient-to-br from-blue-500 to-indigo-600',    description: 'Production jobs registered' },
+    { label: 'MOs In Progress',       value: data?.in_progress_mos ?? 0,            icon: Factory,       color: 'bg-gradient-to-br from-pink-500 to-rose-500',      description: 'Currently on assembly floor' },
+    { label: 'Completed MOs',         value: data?.done_mos ?? 0,                   icon: CheckCircle,   color: 'bg-gradient-to-br from-emerald-400 to-teal-500',   description: 'Fully manufactured items' },
+    { label: 'Low Stock Alerts',      value: data?.low_stock_products ?? 0,         icon: AlertTriangle, color: 'bg-gradient-to-br from-rose-500 to-red-600',       description: 'Products below reorder point' },
   ]
 
   const today = new Date().toLocaleDateString('en-US', {
@@ -63,7 +65,7 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">{user?.name || 'Administrator'}</span>!
+            Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">{user?.full_name || 'Administrator'}</span>!
           </h1>
           <p className="text-slate-500 text-sm mt-1">Here is a quick overview of Shiv Furniture Works for today, {today}.</p>
         </div>

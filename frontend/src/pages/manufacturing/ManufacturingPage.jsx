@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Plus, Eye, CheckCircle, Play, XCircle, BookOpen, X, Factory } from 'lucide-react'
 import api from '../../api/client'
+import { useAuth } from '../../context/AuthContext'
 
 const statusBadge = (s) => ({
   draft: 'badge-draft', confirmed: 'badge-confirmed', in_progress: 'badge-progress',
@@ -14,7 +15,8 @@ function NewMOForm({ onClose }) {
   const qc = useQueryClient()
   const { data: products } = useQuery({ queryKey: ['products'], queryFn: () => api.get('/products').then(r => r.data) })
   const { data: boms } = useQuery({ queryKey: ['boms'], queryFn: () => api.get('/manufacturing/boms').then(r => r.data) })
-  const [form, setForm] = useState({ product_id: '', bom_id: '', qty_planned: 1, scheduled_date: new Date().toISOString().split('T')[0] })
+  const { data: users } = useQuery({ queryKey: ['users'], queryFn: () => api.get('/auth/users').then(r => r.data) })
+  const [form, setForm] = useState({ product_id: '', bom_id: '', qty_planned: 1, scheduled_date: new Date().toISOString().split('T')[0], assignee_id: '' })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   const filteredBoms = boms?.filter(b => !form.product_id || b.product_id === form.product_id)
@@ -61,11 +63,19 @@ function NewMOForm({ onClose }) {
             <label className="label">Scheduled Date</label>
             <input className="input" type="date" value={form.scheduled_date} onChange={e => set('scheduled_date', e.target.value)} />
           </div>
+
+          <div>
+            <label className="label">Assignee</label>
+            <select className="input" value={form.assignee_id} onChange={e => set('assignee_id', e.target.value)}>
+              <option value="">Unassigned</option>
+              {users?.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
+            </select>
+          </div>
         </div>
 
         <div className="px-6 py-4 border-t border-slate-100 flex gap-3 justify-end bg-white">
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn-primary" onClick={() => mut.mutate({ ...form, bom_id: form.bom_id || null, qty_planned: parseFloat(form.qty_planned) })} disabled={mut.isPending}>
+          <button className="btn-primary" onClick={() => mut.mutate({ ...form, bom_id: form.bom_id || null, qty_planned: parseFloat(form.qty_planned), assignee_id: form.assignee_id || null })} disabled={mut.isPending}>
             {mut.isPending ? 'Creating...' : 'Create MO'}
           </button>
         </div>
@@ -92,7 +102,7 @@ const TableSkeleton = () => (
   </div>
 )
 
-const EmptyState = ({ onAction }) => (
+const EmptyState = ({ onAction, canCreate }) => (
   <div className="card flex flex-col items-center justify-center text-center py-16 px-4 animate-in">
     <div className="p-4 bg-indigo-50 text-indigo-600 rounded-full mb-4">
       <Factory size={32} />
@@ -101,14 +111,19 @@ const EmptyState = ({ onAction }) => (
     <p className="text-sm text-slate-500 max-w-sm mb-6">
       Plan, schedule, and track product assembly operations, material consumption, and floor execution statuses.
     </p>
-    <button className="btn-primary" onClick={onAction}>
-      <Plus size={16} /> Plan First MO
-    </button>
+    {canCreate && (
+      <button className="btn-primary" onClick={onAction}>
+        <Plus size={16} /> Plan First MO
+      </button>
+    )}
   </div>
 )
 
 export default function ManufacturingPage() {
   const qc = useQueryClient()
+  const { user } = useAuth()
+  const canCreate = ['admin', 'owner', 'manufacturing'].includes(user?.role)
+  const canCancel = ['admin', 'owner'].includes(user?.role)
   const [showNew, setShowNew] = useState(false)
   const { data: orders, isLoading } = useQuery({ queryKey: ['manufacturing'], queryFn: () => api.get('/manufacturing/orders').then(r => r.data) })
 
@@ -141,16 +156,18 @@ export default function ManufacturingPage() {
           <Link to="/manufacturing/boms" className="btn-secondary">
             <BookOpen size={16} /> Bill of Materials
           </Link>
-          <button className="btn-primary" onClick={() => setShowNew(true)}>
-            <Plus size={18} /> New MO
-          </button>
+          {canCreate && (
+            <button className="btn-primary" onClick={() => setShowNew(true)}>
+              <Plus size={18} /> New MO
+            </button>
+          )}
         </div>
       </div>
 
       {isLoading ? (
         <TableSkeleton />
       ) : !orders?.length ? (
-        <EmptyState onAction={() => setShowNew(true)} />
+        <EmptyState onAction={() => setShowNew(true)} canCreate={canCreate} />
       ) : (
         <div className="table-wrapper">
           <div className="overflow-x-auto">
@@ -183,17 +200,17 @@ export default function ManufacturingPage() {
                         <Link to={`/manufacturing/${o.id}`} className="btn-icon text-indigo-600 hover:bg-indigo-50" title="View MO Details">
                           <Eye size={16} />
                         </Link>
-                        {o.status === 'draft' && (
+                        {canCreate && o.status === 'draft' && (
                           <button className="btn-icon text-emerald-600 hover:bg-emerald-50" title="Confirm MO" onClick={() => confirmMut.mutate(o.id)}>
                             <CheckCircle size={16} />
                           </button>
                         )}
-                        {o.status === 'confirmed' && (
+                        {canCreate && o.status === 'confirmed' && (
                           <button className="btn-icon text-amber-600 hover:bg-amber-50" title="Start Production" onClick={() => startMut.mutate(o.id)}>
                             <Play size={16} />
                           </button>
                         )}
-                        {!['done', 'cancelled'].includes(o.status) && (
+                        {canCancel && !['done', 'cancelled'].includes(o.status) && (
                           <button className="btn-icon text-rose-600 hover:bg-rose-50" title="Cancel MO" onClick={() => cancelMut.mutate(o.id)}>
                             <XCircle size={16} />
                           </button>

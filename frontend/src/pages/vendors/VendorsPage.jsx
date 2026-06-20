@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { Plus, Edit2, X, Building2, Mail, Phone, MapPin } from 'lucide-react'
 import api from '../../api/client'
+import { useAuth } from '../../context/AuthContext'
 
 function VendorForm({ initial, onSave, onCancel }) {
   const [form, setForm] = useState(initial || { name: '', email: '', phone: '', address: '' })
@@ -63,7 +64,7 @@ const CardsSkeleton = () => (
   </div>
 )
 
-const EmptyState = ({ onAction }) => (
+const EmptyState = ({ onAction, canEdit }) => (
   <div className="card flex flex-col items-center justify-center text-center py-16 px-4 animate-in">
     <div className="p-4 bg-indigo-50 text-indigo-600 rounded-full mb-4">
       <Building2 size={32} />
@@ -72,14 +73,18 @@ const EmptyState = ({ onAction }) => (
     <p className="text-sm text-slate-500 max-w-sm mb-6">
       Add vendor contacts to handle procurement, record supplier orders, and track manufacturing material pipelines.
     </p>
-    <button className="btn-primary" onClick={onAction}>
-      <Plus size={16} /> Create First Vendor
-    </button>
+    {canEdit && (
+      <button className="btn-primary" onClick={onAction}>
+        <Plus size={16} /> Create First Vendor
+      </button>
+    )}
   </div>
 )
 
 export default function VendorsPage() {
   const qc = useQueryClient()
+  const { user } = useAuth()
+  const canEdit = ['admin', 'owner'].includes(user?.role)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   
@@ -116,15 +121,17 @@ export default function VendorsPage() {
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Vendors</h1>
           <p className="text-slate-500 text-sm mt-1">Manage material suppliers, contact information, and business profiles.</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowForm(true)}>
-          <Plus size={18} /> New Vendor
-        </button>
+        {canEdit && (
+          <button className="btn-primary" onClick={() => setShowForm(true)}>
+            <Plus size={18} /> New Vendor
+          </button>
+        )}
       </div>
 
       {isLoading ? (
         <CardsSkeleton />
       ) : !vendors?.length ? (
-        <EmptyState onAction={() => setShowForm(true)} />
+        <EmptyState onAction={() => setShowForm(true)} canEdit={canEdit} />
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {vendors.map(v => {
@@ -162,11 +169,13 @@ export default function VendorsPage() {
                   )}
                 </div>
 
-                <div className="absolute right-4 top-4 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                  <button className="btn-icon bg-slate-50 text-indigo-600 hover:bg-indigo-50" onClick={() => setEditing(v)} title="Edit Profile">
-                    <Edit2 size={14} />
-                  </button>
-                </div>
+                {canEdit && (
+                  <div className="absolute right-4 top-4 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                    <button className="btn-icon bg-slate-50 text-indigo-600 hover:bg-indigo-50" onClick={() => setEditing(v)} title="Edit Profile">
+                      <Edit2 size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
             )
           })}

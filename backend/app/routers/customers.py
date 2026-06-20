@@ -11,7 +11,7 @@ from app.schemas.customer import CustomerCreate, CustomerUpdate, CustomerOut
 from app.core.deps import get_current_user, require_roles
 
 router = APIRouter(prefix="/api/customers", tags=["Customers"])
-_write = require_roles(UserRole.sales, UserRole.admin)
+_write = require_roles(UserRole.sales, UserRole.owner, UserRole.admin)
 
 
 @router.post("", response_model=CustomerOut, status_code=201)

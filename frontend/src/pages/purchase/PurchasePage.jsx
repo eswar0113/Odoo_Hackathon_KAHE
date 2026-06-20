@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Plus, Eye, CheckCircle, XCircle, X, Trash2, Truck } from 'lucide-react'
 import api from '../../api/client'
+import { useAuth } from '../../context/AuthContext'
 
 const statusBadge = (s) => ({
   draft: 'badge-draft', confirmed: 'badge-confirmed',
@@ -142,7 +143,7 @@ const TableSkeleton = () => (
   </div>
 )
 
-const EmptyState = ({ onAction }) => (
+const EmptyState = ({ onAction, canCreate }) => (
   <div className="card flex flex-col items-center justify-center text-center py-16 px-4 animate-in">
     <div className="p-4 bg-indigo-50 text-indigo-600 rounded-full mb-4">
       <Truck size={32} />
@@ -151,14 +152,19 @@ const EmptyState = ({ onAction }) => (
     <p className="text-sm text-slate-500 max-w-sm mb-6">
       Create a purchase order to coordinate materials procurement from vendors and receive incoming inventory.
     </p>
-    <button className="btn-primary" onClick={onAction}>
-      <Plus size={16} /> Create First Purchase Order
-    </button>
+    {canCreate && (
+      <button className="btn-primary" onClick={onAction}>
+        <Plus size={16} /> Create First Purchase Order
+      </button>
+    )}
   </div>
 )
 
 export default function PurchasePage() {
   const qc = useQueryClient()
+  const { user } = useAuth()
+  const canCreate = ['admin', 'owner', 'purchase'].includes(user?.role)
+  const canCancel = ['admin', 'owner'].includes(user?.role)
   const [showNew, setShowNew] = useState(false)
   const { data: orders, isLoading } = useQuery({ queryKey: ['purchase'], queryFn: () => api.get('/purchase').then(r => r.data) })
 
@@ -181,15 +187,17 @@ export default function PurchasePage() {
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Purchase Orders</h1>
           <p className="text-slate-500 text-sm mt-1">Track material requisitions, reception progress, costs, and vendor relationships.</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowNew(true)}>
-          <Plus size={18} /> New Purchase Order
-        </button>
+        {canCreate && (
+          <button className="btn-primary" onClick={() => setShowNew(true)}>
+            <Plus size={18} /> New Purchase Order
+          </button>
+        )}
       </div>
 
       {isLoading ? (
         <TableSkeleton />
       ) : !orders?.length ? (
-        <EmptyState onAction={() => setShowNew(true)} />
+        <EmptyState onAction={() => setShowNew(true)} canCreate={canCreate} />
       ) : (
         <div className="table-wrapper">
           <div className="overflow-x-auto">
@@ -218,12 +226,12 @@ export default function PurchasePage() {
                         <Link to={`/purchase/${o.id}`} className="btn-icon text-indigo-600 hover:bg-indigo-50" title="View Details">
                           <Eye size={16} />
                         </Link>
-                        {o.status === 'draft' && (
+                        {canCreate && o.status === 'draft' && (
                           <button className="btn-icon text-emerald-600 hover:bg-emerald-50" title="Confirm Order" onClick={() => confirmMut.mutate(o.id)}>
                             <CheckCircle size={16} />
                           </button>
                         )}
-                        {['draft', 'confirmed'].includes(o.status) && (
+                        {canCancel && ['draft', 'confirmed'].includes(o.status) && (
                           <button className="btn-icon text-rose-600 hover:bg-rose-50" title="Cancel Order" onClick={() => cancelMut.mutate(o.id)}>
                             <XCircle size={16} />
                           </button>
