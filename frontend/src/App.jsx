@@ -14,6 +14,7 @@ import BOMPage from './pages/manufacturing/BOMPage'
 import VendorsPage from './pages/vendors/VendorsPage'
 import CustomersPage from './pages/customers/CustomersPage'
 import AuditPage from './pages/AuditPage'
+import SignupPage from './pages/SignupPage'
 
 function PrivateRoute({ children }) {
   const { user } = useAuth()
@@ -24,7 +25,8 @@ function AppRoutes() {
   const { user } = useAuth()
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
+      <Route path="/login"  element={user ? <Navigate to="/" /> : <LoginPage />} />
+      <Route path="/signup" element={user ? <Navigate to="/" /> : <SignupPage />} />
       <Route path="/*" element={
         <PrivateRoute>
           <Layout>
