@@ -1,0 +1,107 @@
+# ─────────────────────────────────────────────
+#  Python / FastAPI Backend
+# ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.env.local
+
+# Environment variables (keep .env.example)
+backend/.env
+.env
+
+# Alembic – keep migrations, ignore local overrides
+# alembic/versions/ is intentionally tracked
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+
+# mypy / type checkers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+
+# ─────────────────────────────────────────────
+#  Node / Vite Frontend
+# ─────────────────────────────────────────────
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.npm
+*.local
+
+# Vite cache
+frontend/.vite/
+.vite/
+
+# Build output
+frontend/build/
+
+# ─────────────────────────────────────────────
+#  Logs
+# ─────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─────────────────────────────────────────────
+#  OS generated files
+# ─────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ─────────────────────────────────────────────
+#  IDE / Editor
+# ─────────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+*~
+
+# ─────────────────────────────────────────────
+#  Misc / Project-specific
+# ─────────────────────────────────────────────
+pdf_content.txt
+*.pdf
