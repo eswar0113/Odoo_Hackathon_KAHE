@@ -1,10 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Plus, Eye, CheckCircle, Play, XCircle, BookOpen, X, Factory } from 'lucide-react'
+import { Plus, Eye, CheckCircle, Play, XCircle, BookOpen, X, Factory, Filter } from 'lucide-react'
+import Pagination, { PAGE_SIZE } from '../../components/Pagination'
 import api from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
+
+const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+const isOverdue = o => ['confirmed','in_progress'].includes(o.status) && o.scheduled_date && new Date(o.scheduled_date) < new Date()
 
 const statusBadge = (s) => ({
   draft: 'badge-draft', confirmed: 'badge-confirmed', in_progress: 'badge-progress',
@@ -23,7 +27,7 @@ function NewMOForm({ onClose }) {
 
   const mut = useMutation({
     mutationFn: d => api.post('/manufacturing/orders', d),
-    onSuccess: () => { qc.invalidateQueries(['manufacturing']); onClose(); toast.success('Manufacturing order created') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manufacturing'] }); onClose(); toast.success('Manufacturing order created') },
     onError: e => toast.error(e.response?.data?.detail || 'Failed to create MO'),
   })
 
@@ -120,37 +124,52 @@ const EmptyState = ({ onAction, canCreate }) => (
 )
 
 export default function ManufacturingPage() {
+  const navigate = useNavigate()
   const qc = useQueryClient()
   const { user } = useAuth()
   const canCreate = ['admin', 'owner', 'manufacturing'].includes(user?.role)
   const canCancel = ['admin', 'owner'].includes(user?.role)
   const [showNew, setShowNew] = useState(false)
-  const { data: orders, isLoading } = useQuery({ queryKey: ['manufacturing'], queryFn: () => api.get('/manufacturing/orders').then(r => r.data) })
+  const [page, setPage] = useState(1)
+  const [statusFilter, setStatusFilter] = useState('')
+  useEffect(() => { setPage(1) }, [statusFilter])
+
+  const { data: orders, isLoading } = useQuery({
+    queryKey: ['manufacturing', statusFilter, page],
+    queryFn: () => api.get('/manufacturing/orders', {
+      params: { skip: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE, ...(statusFilter ? { status: statusFilter } : {}) }
+    }).then(r => r.data),
+  })
 
   const confirmMut = useMutation({ 
     mutationFn: id => api.post(`/manufacturing/orders/${id}/confirm`), 
-    onSuccess: () => { qc.invalidateQueries(['manufacturing']); toast.success('MO confirmed successfully') }, 
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manufacturing'] }); toast.success('MO confirmed successfully') }, 
     onError: e => toast.error(e.response?.data?.detail || 'Failed to confirm order') 
   })
   
   const startMut = useMutation({ 
     mutationFn: id => api.post(`/manufacturing/orders/${id}/start`), 
-    onSuccess: () => { qc.invalidateQueries(['manufacturing']); toast.success('MO execution started') }, 
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manufacturing'] }); toast.success('MO execution started') }, 
     onError: e => toast.error(e.response?.data?.detail || 'Failed to start execution') 
   })
   
   const cancelMut = useMutation({ 
     mutationFn: id => api.post(`/manufacturing/orders/${id}/cancel`), 
-    onSuccess: () => { qc.invalidateQueries(['manufacturing']); toast.success('MO cancelled') }, 
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manufacturing'] }); toast.success('MO cancelled') }, 
     onError: e => toast.error(e.response?.data?.detail || 'Failed to cancel order') 
   })
 
   return (
     <div className="space-y-6 animate-in">
       <div className="flex items-center justify-between pb-2">
-        <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Manufacturing Orders</h1>
-          <p className="text-slate-500 text-sm mt-1">Schedule production orders, track raw material reserves, and confirm outputs.</p>
+        <div className="flex items-center gap-4">
+          <div className="page-icon bg-orange-50 text-orange-800">
+            <Factory size={18} />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold text-slate-900">Manufacturing Orders</h1>
+            <p className="text-slate-500 text-sm mt-0.5">Schedule production, track material consumption, and confirm outputs.</p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Link to="/manufacturing/boms" className="btn-secondary">
@@ -164,6 +183,23 @@ export default function ManufacturingPage() {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2 items-center p-4 bg-white rounded-2xl border border-slate-200 shadow-sm">
+        <Filter size={14} className="text-slate-400 flex-shrink-0" />
+        <select className="input py-2 text-sm w-48" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <option value="">All Statuses</option>
+          <option value="draft">Draft</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="in_progress">In Progress</option>
+          <option value="done">Done</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        {statusFilter && (
+          <button className="btn-secondary py-1.5 px-3 text-xs ml-auto" onClick={() => setStatusFilter('')}>
+            <X size={12} /> Clear
+          </button>
+        )}
+      </div>
+
       {isLoading ? (
         <TableSkeleton />
       ) : !orders?.length ? (
@@ -173,55 +209,87 @@ export default function ManufacturingPage() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
-                <tr>
-                  {['MO Code', 'Product', 'Planned Qty', 'Produced Qty', 'Scheduled Date', 'Status', 'Origin', 'Actions'].map(h => (
-                    <th key={h} className="th">{h}</th>
-                  ))}
+                <tr className="border-b-2 border-slate-100">
+                  <th className="th">MO</th>
+                  <th className="th">Product</th>
+                  <th className="th">Progress</th>
+                  <th className="th">Scheduled</th>
+                  <th className="th">Status</th>
+                  <th className="th">Origin</th>
+                  <th className="th">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {orders.map(o => (
-                  <tr key={o.id} className="tr-hover">
-                    <td className="td font-mono font-bold text-indigo-600">{o.name}</td>
-                    <td className="td font-semibold text-slate-800">{o.product_name}</td>
-                    <td className="td text-slate-700 font-medium">{Number(o.qty_planned).toFixed(0)}</td>
-                    <td className="td text-emerald-600 font-bold">{Number(o.qty_produced).toFixed(0)}</td>
-                    <td className="td text-slate-500 text-sm font-medium">
-                      {o.scheduled_date ? new Date(o.scheduled_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
-                    </td>
-                    <td className="td">
-                      <span className={`${statusBadge(o.status)} capitalize`}>
-                        {o.status.replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td className="td font-mono text-slate-400 text-xs">{o.origin_ref || '—'}</td>
-                    <td className="td">
-                      <div className="flex items-center gap-1">
-                        <Link to={`/manufacturing/${o.id}`} className="btn-icon text-indigo-600 hover:bg-indigo-50" title="View MO Details">
-                          <Eye size={16} />
-                        </Link>
-                        {canCreate && o.status === 'draft' && (
-                          <button className="btn-icon text-emerald-600 hover:bg-emerald-50" title="Confirm MO" onClick={() => confirmMut.mutate(o.id)}>
-                            <CheckCircle size={16} />
-                          </button>
-                        )}
-                        {canCreate && o.status === 'confirmed' && (
-                          <button className="btn-icon text-amber-600 hover:bg-amber-50" title="Start Production" onClick={() => startMut.mutate(o.id)}>
-                            <Play size={16} />
-                          </button>
-                        )}
-                        {canCancel && !['done', 'cancelled'].includes(o.status) && (
-                          <button className="btn-icon text-rose-600 hover:bg-rose-50" title="Cancel MO" onClick={() => cancelMut.mutate(o.id)}>
-                            <XCircle size={16} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {orders.map(o => {
+                  const planned = Number(o.qty_planned) || 0
+                  const produced = Number(o.qty_produced) || 0
+                  const pct = planned > 0 ? Math.min(100, Math.round((produced / planned) * 100)) : 0
+                  const overdue = isOverdue(o)
+                  return (
+                    <tr key={o.id} className={`tr-hover cursor-pointer ${overdue ? 'bg-rose-50/30' : ''}`} onClick={() => navigate(`/manufacturing/${o.id}`)}>
+                      <td className="td">
+                        <div className="font-mono font-bold text-amber-600 text-sm">{o.name}</div>
+                        {o.origin_ref && <div className="text-xs text-slate-400 mt-0.5 font-mono">← {o.origin_ref}</div>}
+                      </td>
+                      <td className="td">
+                        <div className="font-semibold text-slate-800 text-sm">{o.product_name}</div>
+                        <div className="text-xs text-slate-400 mt-0.5">
+                          Qty: <span className="font-bold text-slate-600">{planned}</span>
+                        </div>
+                      </td>
+                      <td className="td">
+                        <div className="flex items-center gap-2 min-w-[100px]">
+                          <div className="stock-bar flex-1">
+                            <div
+                              className={pct === 100 ? 'stock-fill-ok' : pct > 0 ? 'stock-fill-low' : 'h-full rounded-full bg-slate-200'}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-bold text-slate-600 tabular-nums w-8 text-right">{pct}%</span>
+                        </div>
+                        <div className="text-xs text-slate-400 mt-1">
+                          {produced} / {planned} produced
+                        </div>
+                      </td>
+                      <td className="td">
+                        <div className={`text-sm font-medium ${overdue ? 'text-rose-600' : 'text-slate-600'}`}>
+                          {fmtDate(o.scheduled_date)}
+                        </div>
+                        {overdue && <div className="text-[10px] text-rose-500 font-bold mt-0.5 uppercase tracking-wide">Overdue</div>}
+                      </td>
+                      <td className="td">
+                        <span className={`${statusBadge(o.status)} capitalize`}>{o.status.replace(/_/g, ' ')}</span>
+                      </td>
+                      <td className="td font-mono text-slate-400 text-xs">{o.origin_ref || '—'}</td>
+                      <td className="td" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-1">
+                          <Link to={`/manufacturing/${o.id}`} className="btn-icon text-indigo-600 hover:bg-indigo-50" title="View MO Details">
+                            <Eye size={16} />
+                          </Link>
+                          {canCreate && o.status === 'draft' && (
+                            <button className="btn-icon text-emerald-600 hover:bg-emerald-50" title="Confirm MO" onClick={() => confirmMut.mutate(o.id)}>
+                              <CheckCircle size={16} />
+                            </button>
+                          )}
+                          {canCreate && o.status === 'confirmed' && (
+                            <button className="btn-icon text-amber-600 hover:bg-amber-50" title="Start Production" onClick={() => startMut.mutate(o.id)}>
+                              <Play size={16} />
+                            </button>
+                          )}
+                          {canCancel && !['done', 'cancelled'].includes(o.status) && (
+                            <button className="btn-icon text-rose-600 hover:bg-rose-50" title="Cancel MO" onClick={() => cancelMut.mutate(o.id)}>
+                              <XCircle size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
+          <Pagination page={page} count={orders?.length ?? 0} onPageChange={setPage} />
         </div>
       )}
 

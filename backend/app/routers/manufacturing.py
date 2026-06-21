@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -63,8 +63,15 @@ def create_bom(payload: BOMCreate, db: Session = Depends(get_db), current_user: 
 
 
 @router.get("/boms", response_model=List[BOMOut])
-def list_boms(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    boms = db.query(BOM).order_by(BOM.created_at.desc()).all()
+def list_boms(
+    product_id: Optional[UUID] = Query(None),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    q = db.query(BOM)
+    if product_id:
+        q = q.filter(BOM.product_id == product_id)
+    boms = q.order_by(BOM.created_at.desc()).all()
     return [_bom_out(b) for b in boms]
 
 
@@ -154,8 +161,20 @@ def create_mo(payload: MOCreate, db: Session = Depends(get_db), current_user: Us
 
 
 @router.get("/orders", response_model=List[MOOut])
-def list_mos(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    mos = db.query(ManufacturingOrder).order_by(ManufacturingOrder.created_at.desc()).all()
+def list_mos(
+    status: Optional[MOStatus] = Query(None),
+    product_id: Optional[UUID] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    q = db.query(ManufacturingOrder)
+    if status:
+        q = q.filter(ManufacturingOrder.status == status)
+    if product_id:
+        q = q.filter(ManufacturingOrder.product_id == product_id)
+    mos = q.order_by(ManufacturingOrder.created_at.desc()).offset(skip).limit(limit).all()
     return [_mo_out(mo, db) for mo in mos]
 
 
@@ -175,9 +194,15 @@ def confirm_mo(mo_id: UUID, db: Session = Depends(get_db), current_user: User = 
     if mo.status != MOStatus.draft:
         raise HTTPException(status_code=400, detail="MO is not in draft state")
 
-    # Reserve component stock
+    # Check and reserve component stock
     for comp in mo.components:
         product = db.query(Product).filter(Product.id == comp.product_id).first()
+        free_qty = float(product.on_hand_qty) - float(product.reserved_qty)
+        if free_qty < float(comp.qty_planned):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient stock for component '{product.name}': need {float(comp.qty_planned):.2f}, only {free_qty:.2f} free"
+            )
         reserve_stock(db, product, comp.qty_planned)
 
     mo.status = MOStatus.confirmed
@@ -270,7 +295,7 @@ def cancel_mo(mo_id: UUID, db: Session = Depends(get_db), current_user: User = D
 # ── Work Orders ───────────────────────────────────────────────────────────────
 
 @router.post("/orders/{mo_id}/work-orders/{wo_id}/start", response_model=WorkOrderOut)
-def start_work_order(mo_id: UUID, wo_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(_write)):
+def start_work_order(mo_id: UUID, wo_id: UUID, db: Session = Depends(get_db), _: User = Depends(_write)):
     wo = db.query(WorkOrder).filter(WorkOrder.id == wo_id, WorkOrder.mo_id == mo_id).first()
     if not wo:
         raise HTTPException(status_code=404, detail="Work order not found")
@@ -280,11 +305,11 @@ def start_work_order(mo_id: UUID, wo_id: UUID, db: Session = Depends(get_db), cu
     wo.started_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(wo)
-    return _wo_out(wo, db)
+    return _wo_out(wo)
 
 
 @router.post("/orders/{mo_id}/work-orders/{wo_id}/done", response_model=WorkOrderOut)
-def finish_work_order(mo_id: UUID, wo_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(_write)):
+def finish_work_order(mo_id: UUID, wo_id: UUID, db: Session = Depends(get_db), _: User = Depends(_write)):
     wo = db.query(WorkOrder).filter(WorkOrder.id == wo_id, WorkOrder.mo_id == mo_id).first()
     if not wo:
         raise HTTPException(status_code=404, detail="Work order not found")
@@ -294,7 +319,7 @@ def finish_work_order(mo_id: UUID, wo_id: UUID, db: Session = Depends(get_db), c
     wo.completed_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(wo)
-    return _wo_out(wo, db)
+    return _wo_out(wo)
 
 
 # ── Helper serializers ────────────────────────────────────────────────────────
@@ -345,7 +370,7 @@ def _mo_out(mo: ManufacturingOrder, db: Session) -> MOOut:
         )
         for c in mo.components
     ]
-    work_orders = [_wo_out(wo, db) for wo in sorted(mo.work_orders, key=lambda x: x.sequence)]
+    work_orders = [_wo_out(wo) for wo in sorted(mo.work_orders, key=lambda x: x.sequence)]
     return MOOut(
         id=mo.id,
         name=mo.name,
@@ -365,7 +390,7 @@ def _mo_out(mo: ManufacturingOrder, db: Session) -> MOOut:
     )
 
 
-def _wo_out(wo: WorkOrder, db: Session) -> WorkOrderOut:
+def _wo_out(wo: WorkOrder) -> WorkOrderOut:
     wc_name = wo.work_center.name if wo.work_center else None
     return WorkOrderOut(
         id=wo.id,

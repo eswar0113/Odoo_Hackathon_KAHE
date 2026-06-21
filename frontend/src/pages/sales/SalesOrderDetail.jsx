@@ -45,13 +45,13 @@ export default function SalesOrderDetail() {
 
   const confirmMut = useMutation({ 
     mutationFn: () => api.post(`/sales/${id}/confirm`), 
-    onSuccess: () => { qc.invalidateQueries(['sales', id]); toast.success('Order confirmed successfully') }, 
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sales'] }); toast.success('Order confirmed successfully') }, 
     onError: e => toast.error(e.response?.data?.detail || 'Failed to confirm order') 
   })
   
   const cancelMut = useMutation({ 
     mutationFn: () => api.post(`/sales/${id}/cancel`), 
-    onSuccess: () => { qc.invalidateQueries(['sales', id]); toast.success('Order cancelled') }, 
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sales'] }); toast.success('Order cancelled') }, 
     onError: e => toast.error(e.response?.data?.detail || 'Failed to cancel order') 
   })
   
@@ -59,7 +59,7 @@ export default function SalesOrderDetail() {
     mutationFn: () => api.post(`/sales/${id}/deliver`, {
       lines: Object.entries(deliveries).filter(([, qty]) => parseFloat(qty) > 0).map(([line_id, qty]) => ({ line_id, qty: parseFloat(qty) }))
     }),
-    onSuccess: () => { qc.invalidateQueries(['sales', id]); setDeliveries({}); toast.success('Delivery recorded successfully') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sales'] }); setDeliveries({}); toast.success('Delivery recorded successfully') },
     onError: e => toast.error(e.response?.data?.detail || 'Failed to record delivery'),
   })
 
@@ -79,7 +79,7 @@ export default function SalesOrderDetail() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">{order.name}</h1>
+            <h1 className="text-xl font-semibold text-slate-900">{order.name}</h1>
             <span className={`${statusBadge(order.status)} capitalize`}>{order.status.replace(/_/g, ' ')}</span>
           </div>
           <p className="text-slate-500 text-xs mt-1.5 font-medium">Record ID: <span className="font-mono text-slate-700">{order.id}</span></p>

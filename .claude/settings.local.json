@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "PowerShell(& \"E:\\\\postgresql\\\\bin\\\\psql.exe\" -U postgres -c \"SELECT 1;\" 2>&1)",
-      "WebFetch(domain:app.excalidraw.com)"
+      "WebFetch(domain:app.excalidraw.com)",
+      "Bash(npx vite *)"
     ]
   }
 }

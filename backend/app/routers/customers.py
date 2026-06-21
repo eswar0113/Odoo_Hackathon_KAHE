@@ -1,7 +1,8 @@
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -24,8 +25,24 @@ def create_customer(payload: CustomerCreate, db: Session = Depends(get_db), _: U
 
 
 @router.get("", response_model=List[CustomerOut])
-def list_customers(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return db.query(Customer).order_by(Customer.name).all()
+def list_customers(
+    search: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=200),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    q = db.query(Customer)
+    if search:
+        term = f"%{search}%"
+        q = q.filter(
+            or_(
+                Customer.name.ilike(term),
+                Customer.email.ilike(term),
+                Customer.phone.ilike(term),
+            )
+        )
+    return q.order_by(Customer.name).offset(skip).limit(limit).all()
 
 
 @router.get("/{customer_id}", response_model=CustomerOut)

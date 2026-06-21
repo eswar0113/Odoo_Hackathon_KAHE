@@ -14,6 +14,7 @@ class ProductCreate(BaseModel):
     unit_of_measure: str = "pcs"
     sales_price: Decimal
     cost_price: Decimal
+    tax_percent: Decimal = Decimal("0")
     on_hand_qty: Decimal = Decimal("0")
     procure_on_demand: bool = False
     procurement_type: Optional[ProcurementType] = None
@@ -30,6 +31,7 @@ class ProductUpdate(BaseModel):
     unit_of_measure: Optional[str] = None
     sales_price: Optional[Decimal] = None
     cost_price: Optional[Decimal] = None
+    tax_percent: Optional[Decimal] = None
     procure_on_demand: Optional[bool] = None
     procurement_type: Optional[ProcurementType] = None
     procurement_strategy: Optional[ProcurementStrategy] = None
@@ -37,6 +39,12 @@ class ProductUpdate(BaseModel):
     reorder_qty: Optional[Decimal] = None
     vendor_id: Optional[UUID] = None
     is_active: Optional[bool] = None
+
+
+class PricingUpdate(BaseModel):
+    cost_price: Decimal
+    sales_price: Decimal
+    tax_percent: Decimal = Decimal("0")
 
 
 class ProductOut(BaseModel):
@@ -47,6 +55,7 @@ class ProductOut(BaseModel):
     unit_of_measure: str
     sales_price: Decimal
     cost_price: Decimal
+    tax_percent: Decimal
     on_hand_qty: Decimal
     reserved_qty: Decimal
     free_to_use_qty: float

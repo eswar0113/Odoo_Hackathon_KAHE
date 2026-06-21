@@ -15,15 +15,18 @@ import VendorsPage from './pages/vendors/VendorsPage'
 import CustomersPage from './pages/customers/CustomersPage'
 import AuditPage from './pages/AuditPage'
 import SignupPage from './pages/SignupPage'
+import UsersPage from './pages/users/UsersPage'
+import ProfilePage from './pages/profile/ProfilePage'
 
 const ROUTE_ROLES = {
-  '/products':        ['admin','owner','inventory'],
+  '/products':        ['admin','owner','inventory','sales','purchase','manufacturing'],
   '/sales':           ['admin','owner','sales'],
   '/purchase':        ['admin','owner','purchase'],
   '/manufacturing':   ['admin','owner','manufacturing'],
   '/vendors':         ['admin','owner','purchase'],
   '/customers':       ['admin','owner','sales'],
-  '/audit':           ['admin'],
+  '/audit':           ['admin','owner'],
+  '/users':           ['admin'],
 }
 
 function PrivateRoute({ children }) {
@@ -54,11 +57,13 @@ function AppRoutes() {
               <Route path="/purchase"             element={<RoleRoute roles={ROUTE_ROLES['/purchase']}><PurchasePage /></RoleRoute>} />
               <Route path="/purchase/:id"         element={<RoleRoute roles={ROUTE_ROLES['/purchase']}><PurchaseOrderDetail /></RoleRoute>} />
               <Route path="/manufacturing"        element={<RoleRoute roles={ROUTE_ROLES['/manufacturing']}><ManufacturingPage /></RoleRoute>} />
-              <Route path="/manufacturing/:id"    element={<RoleRoute roles={ROUTE_ROLES['/manufacturing']}><MODetail /></RoleRoute>} />
               <Route path="/manufacturing/boms"   element={<RoleRoute roles={ROUTE_ROLES['/manufacturing']}><BOMPage /></RoleRoute>} />
+              <Route path="/manufacturing/:id"    element={<RoleRoute roles={ROUTE_ROLES['/manufacturing']}><MODetail /></RoleRoute>} />
               <Route path="/vendors"              element={<RoleRoute roles={ROUTE_ROLES['/vendors']}><VendorsPage /></RoleRoute>} />
               <Route path="/customers"            element={<RoleRoute roles={ROUTE_ROLES['/customers']}><CustomersPage /></RoleRoute>} />
               <Route path="/audit"                element={<RoleRoute roles={ROUTE_ROLES['/audit']}><AuditPage /></RoleRoute>} />
+              <Route path="/users"                element={<RoleRoute roles={ROUTE_ROLES['/users']}><UsersPage /></RoleRoute>} />
+              <Route path="/profile"             element={<ProfilePage />} />
             </Routes>
           </Layout>
         </PrivateRoute>

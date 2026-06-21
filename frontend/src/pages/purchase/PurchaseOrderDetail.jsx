@@ -45,13 +45,13 @@ export default function PurchaseOrderDetail() {
 
   const confirmMut = useMutation({ 
     mutationFn: () => api.post(`/purchase/${id}/confirm`), 
-    onSuccess: () => { qc.invalidateQueries(['purchase', id]); toast.success('Purchase order confirmed') }, 
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['purchase'] }); toast.success('Purchase order confirmed') }, 
     onError: e => toast.error(e.response?.data?.detail || 'Failed to confirm order') 
   })
   
   const cancelMut = useMutation({ 
     mutationFn: () => api.post(`/purchase/${id}/cancel`), 
-    onSuccess: () => { qc.invalidateQueries(['purchase', id]); toast.success('Purchase order cancelled') }, 
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['purchase'] }); toast.success('Purchase order cancelled') }, 
     onError: e => toast.error(e.response?.data?.detail || 'Failed to cancel order') 
   })
   
@@ -59,7 +59,7 @@ export default function PurchaseOrderDetail() {
     mutationFn: () => api.post(`/purchase/${id}/receive`, {
       lines: Object.entries(receipts).filter(([, qty]) => parseFloat(qty) > 0).map(([line_id, qty]) => ({ line_id, qty: parseFloat(qty) }))
     }),
-    onSuccess: () => { qc.invalidateQueries(['purchase', id]); setReceipts({}); toast.success('Items received successfully') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['purchase'] }); setReceipts({}); toast.success('Items received successfully') },
     onError: e => toast.error(e.response?.data?.detail || 'Failed to receive items'),
   })
 
@@ -79,7 +79,7 @@ export default function PurchaseOrderDetail() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">{order.name}</h1>
+            <h1 className="text-xl font-semibold text-slate-900">{order.name}</h1>
             <span className={`${statusBadge(order.status)} capitalize`}>{order.status.replace(/_/g, ' ')}</span>
           </div>
           <div className="flex items-center gap-4 mt-2 font-medium text-xs text-slate-500">

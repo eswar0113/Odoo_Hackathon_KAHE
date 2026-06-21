@@ -47,34 +47,34 @@ export default function MODetail() {
 
   const confirmMut = useMutation({
     mutationFn: () => api.post(`/manufacturing/orders/${id}/confirm`),
-    onSuccess: () => { qc.invalidateQueries(['manufacturing', id]); toast.success('MO confirmed successfully') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manufacturing'] }); toast.success('MO confirmed successfully') },
     onError: e => toast.error(e.response?.data?.detail || 'Error'),
   })
   const startMut = useMutation({
     mutationFn: () => api.post(`/manufacturing/orders/${id}/start`),
-    onSuccess: () => { qc.invalidateQueries(['manufacturing', id]); toast.success('Production started') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manufacturing'] }); toast.success('Production started') },
     onError: e => toast.error(e.response?.data?.detail || 'Error'),
   })
   const produceMut = useMutation({
     mutationFn: () => api.post(`/manufacturing/orders/${id}/produce`),
-    onSuccess: () => { qc.invalidateQueries(['manufacturing', id]); toast.success('Production completed! Inventory updated.') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manufacturing'] }); toast.success('Production completed! Inventory updated.') },
     onError: e => toast.error(e.response?.data?.detail || 'Error'),
   })
   const cancelMut = useMutation({
     mutationFn: () => api.post(`/manufacturing/orders/${id}/cancel`),
-    onSuccess: () => { qc.invalidateQueries(['manufacturing', id]); toast.success('MO cancelled') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manufacturing'] }); toast.success('MO cancelled') },
     onError: e => toast.error(e.response?.data?.detail || 'Error'),
   })
 
   const woStartMut = useMutation({
     mutationFn: (wo_id) => api.post(`/manufacturing/orders/${id}/work-orders/${wo_id}/start`),
-    onSuccess: () => { qc.invalidateQueries(['manufacturing', id]); toast.success('Work order started') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manufacturing'] }); toast.success('Work order started') },
     onError: e => toast.error(e.response?.data?.detail || 'Error'),
   })
 
   const woDoneMut = useMutation({
     mutationFn: (wo_id) => api.post(`/manufacturing/orders/${id}/work-orders/${wo_id}/done`),
-    onSuccess: () => { qc.invalidateQueries(['manufacturing', id]); toast.success('Work order marked done') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['manufacturing'] }); toast.success('Work order marked done') },
     onError: e => toast.error(e.response?.data?.detail || 'Error'),
   })
 
@@ -92,7 +92,7 @@ export default function MODetail() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">{mo.name}</h1>
+            <h1 className="text-xl font-semibold text-slate-900">{mo.name}</h1>
             <span className={`${statusBadge(mo.status)} capitalize`}>{mo.status.replace(/_/g, ' ')}</span>
           </div>
           <div className="flex items-center gap-4 mt-2 font-medium text-xs text-slate-500">

@@ -22,7 +22,14 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
-  return <AuthContext.Provider value={{ user, login, logout }}>{children}</AuthContext.Provider>
+  const refreshUser = async () => {
+    const { data } = await api.get('/auth/me')
+    localStorage.setItem('user', JSON.stringify(data))
+    setUser(data)
+    return data
+  }
+
+  return <AuthContext.Provider value={{ user, login, logout, refreshUser }}>{children}</AuthContext.Provider>
 }
 
 export const useAuth = () => useContext(AuthContext)

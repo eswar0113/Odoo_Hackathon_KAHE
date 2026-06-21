@@ -41,6 +41,7 @@ class Product(Base):
     unit_of_measure = Column(String(50), default="pcs")
     sales_price = Column(Numeric(12, 2), nullable=False, default=0)
     cost_price = Column(Numeric(12, 2), nullable=False, default=0)
+    tax_percent = Column(Numeric(5, 2), nullable=False, default=0)  # e.g. 18.00 for 18% GST
 
     # Stock quantities
     on_hand_qty = Column(Numeric(12, 3), nullable=False, default=0)
@@ -66,6 +67,13 @@ class Product(Base):
     @property
     def free_to_use_qty(self):
         return float(self.on_hand_qty) - float(self.reserved_qty)
+
+
+
+
+
+
+
 
 
 class StockLedger(Base):

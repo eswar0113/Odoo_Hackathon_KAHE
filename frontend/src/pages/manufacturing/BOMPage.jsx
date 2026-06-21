@@ -12,7 +12,7 @@ function WorkCenterPanel({ canEdit }) {
   const { data: workCenters } = useQuery({ queryKey: ['work-centers'], queryFn: () => api.get('/manufacturing/work-centers').then(r => r.data) })
   const createMut = useMutation({
     mutationFn: d => api.post('/manufacturing/work-centers', d),
-    onSuccess: () => { qc.invalidateQueries(['work-centers']); setName(''); toast.success('Work center created') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['work-centers'] }); setName(''); toast.success('Work center created') },
     onError: e => toast.error(e.response?.data?.detail || 'Failed to create work center'),
   })
   return (
@@ -61,7 +61,7 @@ function BOMForm({ onClose }) {
 
   const mut = useMutation({
     mutationFn: d => api.post('/manufacturing/boms', d),
-    onSuccess: () => { qc.invalidateQueries(['boms']); onClose(); toast.success('Bill of Materials created') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['boms'] }); onClose(); toast.success('Bill of Materials created') },
     onError: e => toast.error(e.response?.data?.detail || 'Failed to create BoM'),
   })
 
@@ -234,7 +234,7 @@ export default function BOMPage() {
             <ArrowLeft size={20} />
           </Link>
           <div>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Bills of Materials</h1>
+            <h1 className="text-xl font-semibold text-slate-900">Bills of Materials</h1>
             <p className="text-slate-500 text-sm mt-1">Configure formulas, material specifications, and production steps.</p>
           </div>
         </div>

@@ -29,7 +29,10 @@ def trigger_procurement(
 
 def _create_purchase_order(db: Session, product: Product, qty: Decimal, origin_ref: Optional[str], user_id) -> PurchaseOrder:
     if not product.vendor_id:
-        return None  # Cannot create PO without vendor
+        log_action(db, "AUTO_CREATE", "purchase_order", None, None,
+                   new_values={"error": f"No vendor set for product '{product.name}' — PO skipped", "origin": origin_ref},
+                   user_id=user_id)
+        return None
 
     po = PurchaseOrder(
         name=next_po_name(db),

@@ -1,8 +1,9 @@
+from datetime import date
 from decimal import Decimal
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -57,8 +58,26 @@ def create_sales_order(
 
 
 @router.get("", response_model=List[SalesOrderOut])
-def list_sales_orders(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return db.query(SalesOrder).order_by(SalesOrder.created_at.desc()).all()
+def list_sales_orders(
+    status: Optional[SalesOrderStatus] = Query(None),
+    customer_id: Optional[UUID] = Query(None),
+    date_from: Optional[date] = Query(None, description="Filter by order_date >="),
+    date_to: Optional[date] = Query(None, description="Filter by order_date <="),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    q = db.query(SalesOrder)
+    if status:
+        q = q.filter(SalesOrder.status == status)
+    if customer_id:
+        q = q.filter(SalesOrder.customer_id == customer_id)
+    if date_from:
+        q = q.filter(SalesOrder.order_date >= date_from)
+    if date_to:
+        q = q.filter(SalesOrder.order_date <= date_to)
+    return q.order_by(SalesOrder.created_at.desc()).offset(skip).limit(limit).all()
 
 
 @router.get("/{order_id}", response_model=SalesOrderOut)
@@ -150,6 +169,8 @@ def deliver_sales_order(
             raise HTTPException(status_code=400, detail="Delivery qty must be positive")
         if float(qty) > float(line.qty_remaining):
             raise HTTPException(status_code=400, detail=f"Cannot deliver more than remaining qty for line {deliver.line_id}")
+        if float(qty) > float(product.on_hand_qty):
+            raise HTTPException(status_code=400, detail=f"Insufficient stock for {product.name}: only {float(product.on_hand_qty):.2f} units available")
 
         release_reservation(db, product, qty)
         record_movement(
@@ -186,10 +207,12 @@ def cancel_sales_order(
     if order.status in (SalesOrderStatus.fully_delivered, SalesOrderStatus.cancelled):
         raise HTTPException(status_code=400, detail="Cannot cancel this order")
 
-    if order.status == SalesOrderStatus.confirmed:
+    if order.status in (SalesOrderStatus.confirmed, SalesOrderStatus.partially_delivered):
         for line in order.lines:
             product = db.query(Product).filter(Product.id == line.product_id).first()
-            release_reservation(db, product, Decimal(str(line.qty_ordered)) - Decimal(str(line.qty_delivered)))
+            remaining = Decimal(str(line.qty_ordered)) - Decimal(str(line.qty_delivered))
+            if remaining > 0:
+                release_reservation(db, product, remaining)
 
     order.status = SalesOrderStatus.cancelled
     db.commit()

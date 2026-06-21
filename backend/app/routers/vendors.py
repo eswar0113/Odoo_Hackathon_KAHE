@@ -1,7 +1,8 @@
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -24,8 +25,24 @@ def create_vendor(payload: VendorCreate, db: Session = Depends(get_db), _: User 
 
 
 @router.get("", response_model=List[VendorOut])
-def list_vendors(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return db.query(Vendor).order_by(Vendor.name).all()
+def list_vendors(
+    search: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=200),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    q = db.query(Vendor)
+    if search:
+        term = f"%{search}%"
+        q = q.filter(
+            or_(
+                Vendor.name.ilike(term),
+                Vendor.email.ilike(term),
+                Vendor.phone.ilike(term),
+            )
+        )
+    return q.order_by(Vendor.name).offset(skip).limit(limit).all()
 
 
 @router.get("/{vendor_id}", response_model=VendorOut)

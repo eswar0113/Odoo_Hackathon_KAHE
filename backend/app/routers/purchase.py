@@ -1,8 +1,9 @@
+from datetime import date
 from decimal import Decimal
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -57,8 +58,26 @@ def create_purchase_order(
 
 
 @router.get("", response_model=List[PurchaseOrderOut])
-def list_purchase_orders(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return db.query(PurchaseOrder).order_by(PurchaseOrder.created_at.desc()).all()
+def list_purchase_orders(
+    status: Optional[PurchaseOrderStatus] = Query(None),
+    vendor_id: Optional[UUID] = Query(None),
+    date_from: Optional[date] = Query(None, description="Filter by order_date >="),
+    date_to: Optional[date] = Query(None, description="Filter by order_date <="),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    q = db.query(PurchaseOrder)
+    if status:
+        q = q.filter(PurchaseOrder.status == status)
+    if vendor_id:
+        q = q.filter(PurchaseOrder.vendor_id == vendor_id)
+    if date_from:
+        q = q.filter(PurchaseOrder.order_date >= date_from)
+    if date_to:
+        q = q.filter(PurchaseOrder.order_date <= date_to)
+    return q.order_by(PurchaseOrder.created_at.desc()).offset(skip).limit(limit).all()
 
 
 @router.get("/{order_id}", response_model=PurchaseOrderOut)
