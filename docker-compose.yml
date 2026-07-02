@@ -1,0 +1,57 @@
+
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: mini-erp-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: aswin@9952217054
+      POSTGRES_DB: mini_erp
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mini-erp-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mini-erp-backend
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgresql://postgres:aswin%409952217054@postgres:5432/mini_erp
+      SECRET_KEY: Kavin_jr
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 480
+    ports:
+      - "8000:8000"
+    networks:
+      - mini-erp-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mini-erp-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    networks:
+      - mini-erp-network
+
+volumes:
+  postgres_data:
+
+networks:
+  mini-erp-network:
+    driver: bridge
+
